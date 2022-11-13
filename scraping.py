@@ -23,37 +23,70 @@ class CianScraper:
         options.add_argument("start-maximized")
         chrome_servise = Service(ChromeDriverManager().install())
         self.driver = webdriver.Chrome(service=chrome_servise, options=options)
-        
-        self.pagination = True
-        self.more_button = True
     
     def start(self, link: str):
         self._get_link(link)
-        buttons = self.driver.find_elements(By.CSS_SELECTOR, value='button')
-        accept_button, = list(filter(lambda x: "принять" in x.text.lower(), buttons))
-        accept_button.click()
+        self._accept_cookies()
+        
+        self.total = int(''.join(self.driver.find_element(By.XPATH, "//div[@data-name='SummaryHeader']").text.split()[1:-1]))
+        self.preprocessed = 0
+        
+        reg_link = self.driver.find_elements(By.XPATH, "//div[@data-name='Pagination']//a[@href]")[1].get_attribute('href')
+        self.region = dict(map(lambda x: x.split('='), reg_link.split('?')[1].split('&')))['region']
+        
+        self.data = []
     
     def _get_link(self, link: str):
         self.driver.get(link)
         RandomTimeEvents.sleep(5)
     
+    def _accept_cookies(self):
+        buttons = self.driver.find_elements(By.CSS_SELECTOR, value='button')
+        accept_button, = list(filter(lambda x: "принять" in x.text.lower(), buttons))
+        accept_button.click()
+        
+    
     def collect_data(self):
-        self.data = []
-        self.total = int(''.join(self.driver.find_element(By.XPATH, "//div[@data-name='SummaryHeader']").text.split()[1:-1]))
-        self.preprocessed = 0
+        for room_type in range(1, 10):
+            if room_type != 8:
+                for new_object in [True, False]:
+                    segment = {'new_object': new_object, 'room_type': room_type}
+                    self._collect_data_by_segment(segment)
+        print('The process has been completed!')
+        self.driver.close()
+    
+    def _collect_data_by_segment(self, segment):
+        self.pagination = True
+        self.more_button = True
+        
+        segment_link = self._generate_cian_link_for_segment(**segment)
+        RandomTimeEvents.sleep(30)
+        self._get_link(segment_link)
         
         while self.pagination:
-            self._collect_data_by_pagination()
+            self._collect_data_by_pagination(segment)
         
         while self.more_button:
             self._collect_data_by_more_button()
         
-        self._scrap_data()
-        print('\nThe process has been completed!')
-        self.driver.close()
-        return self.data
+        self._scrap_data(segment)
+        
+        segment_string = ", ".join([f"{key}-{val}" for key, val in segment.items()])
+        print(f'\nSegment {segment_string} has been preprocessed!')
     
-    def _collect_data_by_pagination(self):
+    def _generate_cian_link_for_segment(self, room_type, new_object, min_price=None, max_price=None):
+        link = 'https://cian.ru/cat.php?currency=2&deal_type=sale&engine_version=2'
+        if max_price is not None:
+            link = link + f"&maxprice={max_price}"
+        if min_price is not None:
+            link = link + f"&minprice={min_price}"
+        link = link + f'&object_type%5B0%5D=2&offer_type=flat&region={self.region}'
+        link = link + f'&room{room_type}=1'
+        if new_object:
+            link = link + '&with_newobject=1'
+        return link
+    
+    def _collect_data_by_pagination(self, segment):
         RandomTimeEvents.sleep(5)
 
         
@@ -66,7 +99,7 @@ class CianScraper:
         try:
             next_page = next(pages)
             next_link = next_page.find_element(By.XPATH, './/a').get_attribute('href')
-            self._scrap_data()
+            self._scrap_data(segment)
             self._get_link(next_link)
         except StopIteration:
             self.pagination = False
@@ -79,22 +112,14 @@ class CianScraper:
         except ValueError:
             self.more_button = False
     
-    def _scrap_data(self):
+    def _scrap_data(self, segment):
         new_data = []
         articles = self.driver.find_elements(By.XPATH, '//article')
         for article in articles:
-            art_dict = {}
+            art_dict = {**segment}
             
             try:
                 art_dict['link'] = article.find_element(By.XPATH, ".//a[contains(@href,'cian.ru/sale/flat')]").get_attribute('href')
-                art_dict['is_new_home'] = bool(
-                    list(
-                        filter(
-                            lambda x: True if "новостройка" in x.text.lower() else False, 
-                            article.find_elements(By.XPATH, ".//div[contains(@class, 'black-label')]")
-                        )
-                    )
-                )
 
                 art_dict['offer_title'] = article.find_element(By.XPATH, ".//span[@data-mark='OfferTitle']").text
                 art_dict['labels'] = article.find_element(By.XPATH, ".//div[contains(@class, 'labels')]").text
