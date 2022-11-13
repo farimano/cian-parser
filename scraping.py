@@ -90,9 +90,9 @@ class CianScraper:
         RandomTimeEvents.sleep(5)
 
         
-        page_section, = self.driver.find_elements(By.XPATH, "//div[@data-name='Pagination']")
-        pages = (page for page in page_section.find_elements(By.XPATH, ".//li"))
-        active_pass = False
+        all_pages = self.driver.find_elements(By.XPATH, "//div[@data-name='Pagination']//li")
+        pages = (page for page in all_pages)
+        active_pass = not bool(all_pages)
         while not active_pass:
             if 'active' in next(pages).get_attribute('class'):
                 active_pass = True

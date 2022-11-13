@@ -8,7 +8,7 @@ from preprocessing import get_price_square
 import pandas as pd
 
 scraper = CianScraper()
-scraper.start('https://kaliningrad.cian.ru/kupit-kvartiru-1-komn-ili-2-komn/')
+scraper.start('https://kaliningrad.cian.ru/kupit-kvartiru/')
 data = scraper.collect_data()
 
 df = pd.DataFrame(data)
