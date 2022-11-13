@@ -16,7 +16,7 @@ class RandomTimeEvents:
         rnd_append = abs(np.random.randn())
         time.sleep(s+rnd_append)        
 
-class CianParser:
+class CianScraper:
  
     def __init__(self):
         options = Options()
@@ -48,7 +48,8 @@ class CianParser:
         while self.more_button:
             self._collect_data_by_more_button()
         
-        self._parse_data()
+        self._scrap_data()
+        print('\nThe process has been completed!')
         self.driver.close()
         return self.data
     
@@ -65,7 +66,7 @@ class CianParser:
         try:
             next_page = next(pages)
             next_link = next_page.find_element(By.XPATH, './/a').get_attribute('href')
-            self._parse_data()
+            self._scrap_data()
             self._get_link(next_link)
         except StopIteration:
             self.pagination = False
@@ -78,7 +79,7 @@ class CianParser:
         except ValueError:
             self.more_button = False
     
-    def _parse_data(self):
+    def _scrap_data(self):
         new_data = []
         articles = self.driver.find_elements(By.XPATH, '//article')
         for article in articles:
@@ -113,4 +114,4 @@ class CianParser:
         
         self.data.extend(new_data)
         self.preprocessed += len(new_data)
-        print(f"{self.preprocessed}\t/\t{self.total} ({self.preprocessed/self.total:.2%})")
+        print(f"{self.preprocessed}\t/\t{self.total} ({self.preprocessed/self.total:.2%})", end='\r')
