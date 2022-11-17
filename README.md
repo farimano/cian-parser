@@ -19,4 +19,4 @@ data['dt'] = data['dt'].map(prep.get_dt)
 prep.rename_data_columns(data)
 data.drop(['room_type'], axis=1, inplace=True)
 ```
-In current version the time of scraping is approximately 1-2 hours. Approximately 30 percent of all advertisments can be collected.
+In current version the time of scraping is approximately 1-2 hours. Approximately 50 percent of all advertisments can be collected because some similar ads are representet by one flat.
