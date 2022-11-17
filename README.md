@@ -11,10 +11,12 @@ scraper = CianScraper()
 scraper.start('https://kaliningrad.cian.ru/kupit-kvartiru/')
 data = scraper.collect_data()
 
-df = pd.DataFrame(data)
-df = prep.first_preprocessing(df)
-df[['n_rooms', 'type']] = df.apply(prep.get_nrooms_type, axis=1)
-df[['price', 'square', 'price_per_meter']] = df.apply(prep.get_price_square, axis=1)
-prep.rename_data_columns(df)
+data = pd.DataFrame(data)
+data = prep.first_preprocessing(data)
+data[['n_rooms', 'type']] = data.apply(prep.get_nrooms_type, axis=1)
+data[['price', 'square', 'price_per_meter']] = data.apply(prep.get_price_square, axis=1)
+data['dt'] = data['dt'].map(prep.get_dt)
+prep.rename_data_columns(data)
+data.drop(['room_type'], axis=1, inplace=True)
 ```
 In current version the time of scraping is approximately 1-2 hours. Approximately 30 percent of all advertisments can be collected.

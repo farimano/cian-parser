@@ -54,6 +54,8 @@ class CianScraper:
                     self._collect_data_by_segment(segment)
         print('The process has been completed!')
         self.driver.close()
+        
+        return self.data
     
     def _collect_data_by_segment(self, segment):
         self.pagination = True
@@ -80,10 +82,8 @@ class CianScraper:
             link = link + f"&maxprice={max_price}"
         if min_price is not None:
             link = link + f"&minprice={min_price}"
-        link = link + f'&object_type%5B0%5D=2&offer_type=flat&region={self.region}'
+        link = link + f'&object_type%5B0%5D={new_object+1}&offer_type=flat&region={self.region}'
         link = link + f'&room{room_type}=1'
-        if new_object:
-            link = link + '&with_newobject=1'
         return link
     
     def _collect_data_by_pagination(self, segment):
@@ -114,26 +114,29 @@ class CianScraper:
     
     def _scrap_data(self, segment):
         new_data = []
-        articles = self.driver.find_elements(By.XPATH, '//article')
+        all_articles = self.driver.find_elements(By.XPATH, '//article')
+        suggestion_articles = self.driver.find_elements(By.XPATH, '//div[@data-name="Suggestions"]//article')
+        
+        articles = list(set(all_articles).difference(set(suggestion_articles)))
+        
         for article in articles:
             art_dict = {**segment}
             
-            try:
-                art_dict['link'] = article.find_element(By.XPATH, ".//a[contains(@href,'cian.ru/sale/flat')]").get_attribute('href')
+            art_dict['link'] = article.find_element(By.XPATH, ".//a[contains(@href,'cian.ru/sale/flat')]").get_attribute('href')
 
-                art_dict['offer_title'] = article.find_element(By.XPATH, ".//span[@data-mark='OfferTitle']").text
-                art_dict['labels'] = article.find_element(By.XPATH, ".//div[contains(@class, 'labels')]").text
+            art_dict['offer_title'] = article.find_element(By.XPATH, ".//span[@data-mark='OfferTitle']").text
+            art_dict['labels'] = article.find_element(By.XPATH, ".//div[contains(@class, 'labels')]").text
 
-                components = article.find_elements(By.XPATH, ".//div[@data-name='GeneralInfoSectionRowComponent']")
-                
-                for num, component in enumerate(components):
-                    art_dict[f'component_{num}'] = component.text
-                
-                art_dict['dt'] = article.find_element(By.XPATH, ".//div[@data-name='TimeLabel']//div[contains(@class,'absolute')]//span").get_attribute('innerHTML')
-                art_dict['subtitle'] = article.find_element(By.XPATH, ".//div[contains(@class, 'subtitle')]").text
-                art_dict['html_source'] = article.get_attribute('innerHTML')
-            except:
-                art_dict['html_source'] = article.get_attribute('innerHTML')
+            components = article.find_elements(By.XPATH, ".//div[@data-name='GeneralInfoSectionRowComponent']")
+
+            for num, component in enumerate(components):
+                art_dict[f'component_{num}'] = component.text
+
+            art_dict['dt'] = article.find_element(By.XPATH, ".//div[@data-name='TimeLabel']//div[contains(@class,'absolute')]//span").get_attribute('innerHTML')
+
+            subtitles = article.find_elements(By.XPATH, ".//div[contains(@class, 'subtitle')]")
+            if subtitles:
+                art_dict['subtitle'] = subtitles[0].text
             
             new_data.append(art_dict)        
         

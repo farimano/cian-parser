@@ -1,28 +1,20 @@
 import pandas as pd
 import numpy as np
+import datetime
 
 
 def first_preprocessing(data: pd.DataFrame) -> pd.DataFrame:
-    # this function is required to delete du[licates, saving the more earlier appearance among all segments
-    # this transformation will be removed after the process of scraping will be adjusted
-    data['count_room_type'] = data.groupby(['room_type', 'new_object']).cumcount()
-    max_count = (
-        data
-        .groupby(['room_type', 'new_object'])
-        .agg(max_count=('count_room_type', lambda x: x.max() + 1))
-        .reset_index()
-    )
-
-    data = data.merge(max_count, on=['room_type', 'new_object'], how='left')
-    data['count_room_type'] = data['count_room_type'] - data['max_count']
-    data = data.sort_values('count_room_type').groupby('link').head(1)
-    data.drop(['count_room_type', 'max_count'], axis=1, inplace=True)
+    # This function is required to delete du[licates, because search engine shows
+    # the same flat several times.
+    data = data.groupby(['new_object', 'room_type', 'link']).tail(1)
     return data.reset_index(drop=True)
 
 def get_nrooms_type(row: pd.Series) -> pd.Series:
     x = row['room_type']
-    if x <= 6:
+    if x < 6:
         return pd.Series({'n_rooms': x, 'type': 'simple'})
+    if x == 6:
+        return pd.Series({'n_rooms': x, 'type': 'many_rooms'})
     if x == 7:
         return pd.Series({'n_rooms': 1, 'type': 'free'})
     if x == 9:
@@ -39,6 +31,43 @@ def get_price_square(row: pd.Series) -> pd.Series:
     price_per_metr = float("".join(raw_price_per_metr.split()[:-1]))
 
     return pd.Series({'price': price, 'square': price / price_per_metr, 'price_per_metr': price_per_metr})
+
+def get_dt(dt_string: str) -> datetime.datetime:
+    rus_month_to_num = {
+        "янв":1,
+        "фев":2,
+        "мар":3,
+        "апр":4,
+        "май":5,
+        "июн":6,
+        "июл":7,
+        "авг":8,
+        "сен":9,
+        "окт":10,
+        "ноя":11,
+        "дек":12,
+    }
+    
+    date_str, time_str = dt_string.split(', ')
+    if date_str == 'сегодня':
+        date = datetime.date.today()
+    elif date_str == 'вчера':
+        date = datetime.date.today() - datetime.timedelta(days=1)
+    else:
+        month = rus_month_to_num[date_str.split()[-1]]
+        day = int(date_str.split()[0])
+        
+        today = datetime.date.today()
+        if (month, day) > (today.month, today.day):
+            year = today.year - 1
+        else:
+            year = today.year
+        date = datetime.date(year, month, day)
+    time = datetime.time(*map(int, time_str.split(':')))
+    
+    dt = datetime.datetime.combine(date,time)
+    return dt
+
 
 def rename_data_columns(data: pd.DataFrame) -> None:
     col_dict = {
