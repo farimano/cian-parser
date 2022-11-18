@@ -20,7 +20,7 @@ def get_nrooms_type(row: pd.Series) -> pd.Series:
     if x == 9:
         return pd.Series({'n_rooms': 1, 'type': 'studio'})
 
-def get_price_square(row: pd.Series) -> pd.Series:
+def get_price_area(row: pd.Series) -> pd.Series:
     for i in range(6, -1, -1):
         if (row[f'component_{i}'] is not np.NaN) and ("₽" in row[f'component_{i}']):
             break
@@ -30,7 +30,7 @@ def get_price_square(row: pd.Series) -> pd.Series:
     price = float("".join(raw_price.split()[:-1]))
     price_per_metr = float("".join(raw_price_per_metr.split()[:-1]))
 
-    return pd.Series({'price': price, 'square': price / price_per_metr, 'price_per_metr': price_per_metr})
+    return pd.Series({'price': price, 'area': price / price_per_metr, 'price_per_metr': price_per_metr})
 
 def get_dt(dt_string: str, launch_date: datetime.datetime=None) -> datetime.datetime:
     rus_month_to_num = {
