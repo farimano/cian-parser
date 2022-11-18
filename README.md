@@ -3,9 +3,11 @@ This main goal of this project is to create the convenient datatool to analyse t
   
 Example of how this module can be used:  
 ```python
-from scraping import CianScraper
-import preprocessing as prep
 import pandas as pd
+import numpy as np
+from functools import reduce
+
+import preprocessing as prep
 
 scraper = CianScraper()
 scraper.start('https://kaliningrad.cian.ru/kupit-kvartiru/')

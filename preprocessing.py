@@ -32,7 +32,7 @@ def get_price_square(row: pd.Series) -> pd.Series:
 
     return pd.Series({'price': price, 'square': price / price_per_metr, 'price_per_metr': price_per_metr})
 
-def get_dt(dt_string: str) -> datetime.datetime:
+def get_dt(dt_string: str, launch_date: datetime.datetime=None) -> datetime.datetime:
     rus_month_to_num = {
         "янв":1,
         "фев":2,
@@ -49,24 +49,75 @@ def get_dt(dt_string: str) -> datetime.datetime:
     }
     
     date_str, time_str = dt_string.split(', ')
+    
+    launch_date = launch_date or datetime.date.today()
+    
     if date_str == 'сегодня':
-        date = datetime.date.today()
+        date = launch_date
     elif date_str == 'вчера':
-        date = datetime.date.today() - datetime.timedelta(days=1)
+        date = launch_date - datetime.timedelta(days=1)
     else:
         month = rus_month_to_num[date_str.split()[-1]]
         day = int(date_str.split()[0])
         
-        today = datetime.date.today()
-        if (month, day) > (today.month, today.day):
-            year = today.year - 1
+        if (month, day) > (launch_date.month, launch_date.day):
+            year = launch_date.year - 1
         else:
-            year = today.year
+            year = launch_date.year
         date = datetime.date(year, month, day)
     time = datetime.time(*map(int, time_str.split(':')))
     
-    dt = datetime.datetime.combine(date,time)
+    dt = datetime.datetime.combine(date, time)
     return dt
+
+def get_address_components(row: str) -> pd.Series:
+    address = row['labels']
+    comps = address.split(', ')
+    
+    keyword_to_val_key = {
+        "р-н": "district",
+        "улица": "street",
+        "проезд": "street",
+        "проспект": "street",
+        "кв-л": "street",
+        "бульвар": "street",
+        "площадь": "street",
+        "переулок": "street",
+        "аллея": "street",
+        "шоссе": "street",
+        "набережная": "street",
+        "тупик": "street",
+        "мкр": "microdistrict",
+        "ЖК": "complex",
+        "пос.": "settlement",
+        "ДНП": "partnership",
+        "СНТ": "partnership",
+        "садовое товарищество": "partnership",
+        "ст.": "station",
+    }
+    
+    vals = {'region': comps[0]}
+    
+    if 'округ' in comps[1]:
+        vals['okrug'] = comps[1]
+    else:
+        vals['city'] = comps[1]
+    
+    remnant = []
+    
+    for comp in comps[2:]:
+        for keyword in keyword_to_val_key:
+            if comp.startswith(f"{keyword} ") or comp.endswith(f" {keyword}"):
+                val_key = keyword_to_val_key[keyword]
+                vals[val_key] = comp
+                break
+        else:
+            if comp[0] in "123456789":
+                vals['house_number'] = comp
+            else:
+                remnant.append(comp) 
+
+    return pd.Series(vals)
 
 
 def rename_data_columns(data: pd.DataFrame) -> None:
