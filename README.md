@@ -6,6 +6,7 @@ Example of how this module can be used:
 import pandas as pd
 import numpy as np
 from functools import reduce
+from scraping import CianScraper
 
 import preprocessing as prep
 
@@ -14,7 +15,6 @@ scraper.start('https://kaliningrad.cian.ru/kupit-kvartiru/')
 data = scraper.collect_data()
 
 df = pd.DataFrame(data)
-df = pd.read_csv('output/cian_data.csv')
 df = prep.first_preprocessing(df)
 df['dt'] = df['dt'].map(prep.get_dt)
 
