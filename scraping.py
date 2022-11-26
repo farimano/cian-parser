@@ -57,13 +57,25 @@ class CianScraper:
         
         return self.data
     
-    def _collect_data_by_segment(self, segment):
-        self.pagination = True
-        self.more_button = True
-        
+    def _collect_data_by_segment(self, segment):        
         segment_link = self._generate_cian_link_for_segment(**segment)
+        self.similar_links = []
+        
         RandomTimeEvents.sleep(30)
         self._get_link(segment_link)
+        self._collect_data(segment)
+        
+        for similar_link in self.similar_links:
+            RandomTimeEvents.sleep(10)
+            self._get_link(similar_link)
+            self._collect_data(segment)
+        
+        segment_string = ", ".join([f"{key}-{val}" for key, val in segment.items()])
+        print(f'\nSegment {segment_string} has been preprocessed!')
+    
+    def _collect_data(self, segment):
+        self.pagination = True
+        self.more_button = True
         
         while self.pagination:
             self._collect_data_by_pagination(segment)
@@ -72,9 +84,6 @@ class CianScraper:
             self._collect_data_by_more_button()
         
         self._scrap_data(segment)
-        
-        segment_string = ", ".join([f"{key}-{val}" for key, val in segment.items()])
-        print(f'\nSegment {segment_string} has been preprocessed!')
     
     def _generate_cian_link_for_segment(self, room_type, new_object, min_price=None, max_price=None):
         link = 'https://cian.ru/cat.php?currency=2&deal_type=sale&engine_version=2'
@@ -131,6 +140,11 @@ class CianScraper:
 
             for num, component in enumerate(components):
                 art_dict[f'component_{num}'] = component.text
+                if component.text.startswith('Ещё'):
+                    sim_link_list = component.find_elements(By.XPATH, './/a[@href]')
+                    if sim_link_list:
+                        self.similar_links.append(sim_link_list[0].get_attribute('href'))
+                    
 
             art_dict['dt'] = article.find_element(By.XPATH, ".//div[@data-name='TimeLabel']//div[contains(@class,'absolute')]//span").get_attribute('innerHTML')
 
