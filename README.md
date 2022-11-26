@@ -29,7 +29,7 @@ df = reduce(lambda x, y: x.join(x.apply(y, axis=1)), [df, *funcs])
 prep.rename_data_columns(df)
 df.drop(['room_type'], axis=1, inplace=True)
 ```
-In current version the time of scraping is approximately 1-2 hours. Approximately 50 percent of all advertisments can be collected because some similar ads are representet by one flat.  
+In current version the time of scraping is approximately 12 hours. Approximately 90 percent of all advertisments can be collected.  
   
 In the current moment, next features can be collected:  
 1) date of posting (dt)
