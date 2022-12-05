@@ -30,6 +30,7 @@ df = reduce(lambda x, y: x.join(x.apply(y, axis=1)), [df, *funcs])
 prep.rename_drop_columns(df)
 ```
 In current version the time of scraping is approximately 12 hours. Approximately 90 percent of all advertisments can be collected.  
+The detailed version of how this module can be used to train real estate evaluation model can be found hear https://github.com/farimano/cian-parser-example  
   
 In the current moment, next features can be collected:  
 1) date of posting (dt)
