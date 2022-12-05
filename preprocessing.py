@@ -70,7 +70,7 @@ def get_dt(dt_string: str, launch_date: datetime.datetime=None) -> datetime.date
     dt = datetime.datetime.combine(date, time)
     return dt
 
-def get_address_components(row: str) -> pd.Series:
+def get_address_components(row: pd.Series) -> pd.Series:
     address = row['labels']
     comps = address.split(', ')
     
@@ -113,16 +113,58 @@ def get_address_components(row: str) -> pd.Series:
                 break
         else:
             if comp[0] in "123456789":
-                vals['house_number'] = comp
+                house_number = comp
+                int_house_number = "".join([sym if sym.isdigit() else '|' for sym in house_number]).split('|', 1)[0]
+                int_house_number = int(int_house_number)
+                
+                vals['house_number'] = house_number
+                vals['int_house_number'] = int_house_number
             else:
                 remnant.append(comp) 
 
     return pd.Series(vals)
 
+def get_floors(row: pd.Series) -> pd.Series:
+    title, subtitle = row[['offer_title', 'subtitle']]
+    
+    for element in [title, subtitle]:
+        if ('этаж' in str(element)) and (len(element.split(', ')) == 3):
+            floor, max_floor = element.split(', ')[2][:-5].split('/')
+            return pd.Series({'floor': floor, 'max_floor': max_floor}).map(int)
+    return None
 
-def rename_data_columns(data: pd.DataFrame) -> None:
+def get_availability(row: pd.Series) -> pd.Series:
+    row = row['subtitle']
+    if pd.isna(row):
+        return row
+    elif 'Сдан' in row:
+        return pd.Series({'is_available': 1})
+    elif 'Сдача корпуса' in row:
+        av_date = row.split('корпуса ')[-1].split()
+        quart = int(av_date[0])
+        year = int(av_date[2])
+        date = datetime.date(year, 1, 1) + datetime.timedelta(45 + 90 * (quart-1))
+        return pd.Series({'is_available': 0, 'available_date': date})
+
+def get_cian_description(row: pd.Series) -> pd.Series:
+    description_components = row[['component_3', 'component_4']].fillna('₽/м²')
+    not_price_components = list(filter(lambda x: not ("₽/м²" in x), description_components))
+    if not_price_components:
+        return pd.Series({'cian_description': not_price_components[0]})
+    else:
+        return None
+
+def rename_drop_columns(data: pd.DataFrame) -> None:
     col_dict = {
-        'component_0': 'titles',
         'labels': 'address',
     }
     data.rename(columns=col_dict, inplace=True)
+    
+    comp_cols = [col for col in data if col.startswith('component')]
+    drop_cols = [
+        *comp_cols,
+        'offer_title',
+        'subtitle',
+        'room_type',
+    ]
+    data.drop(drop_cols, axis=1, inplace=True)

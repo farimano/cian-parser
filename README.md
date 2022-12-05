@@ -22,12 +22,12 @@ funcs = [
     prep.get_nrooms_type,
     prep.get_price_area,
     prep.get_address_components,
+    prep.get_cian_description,
+    prep.get_availability,
+    prep.get_floors,
 ]
-
 df = reduce(lambda x, y: x.join(x.apply(y, axis=1)), [df, *funcs])
-
-prep.rename_data_columns(df)
-df.drop(['room_type'], axis=1, inplace=True)
+prep.rename_drop_columns(df)
 ```
 In current version the time of scraping is approximately 12 hours. Approximately 90 percent of all advertisments can be collected.  
   
@@ -36,3 +36,6 @@ In the current moment, next features can be collected:
 2) address and all its components such as region, city, district, street, etc  
 3) number of rooms and type of of flat as simple, many-rooms for flats with more than 6 rooms, studio and free for free planning  
 4) area of flat and price for 1 squared metr  
+5) maximum floor in the house and the floor of flat  
+6) availability and the date of availability for new objects  
+7) the description of floor  
