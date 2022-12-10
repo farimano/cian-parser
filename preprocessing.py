@@ -70,7 +70,7 @@ def get_post_dt(row: pd.Series, msc_tz_diff: int=0) -> datetime.datetime:
     dt = datetime.datetime.combine(date, time)
     return pd.Series({'post_dt': dt})
 
-def get_address_components(row: pd.Series) -> pd.Series:
+def get_address_components(row: pd.Series, debug=False) -> pd.Series:
     address = row['labels']
     comps = address.split(', ')
     
@@ -94,6 +94,23 @@ def get_address_components(row: pd.Series) -> pd.Series:
         "СНТ": "partnership",
         "садовое товарищество": "partnership",
         "ст.": "station",
+        "м.": 'underground',
+        "мкр.": 'microdistrict',
+        "район": "district",
+        "д.": 'hamlet',
+        "с/пос": "settlement",
+        "с.": "village",
+        "микрорайон": "microdistrict",
+        "жилмассив": "complex",
+        "тракт": "street",
+        "cельское поселение": "settlement",
+        "тер.": "street",
+        "городок": "street",
+    }
+    
+    replace_val_dict = {
+        "МЖК": "complex",
+        "уч9": "ignore",
     }
     
     vals = {'region': comps[0]}
@@ -119,9 +136,15 @@ def get_address_components(row: pd.Series) -> pd.Series:
                 
                 vals['house_number'] = house_number
                 vals['int_house_number'] = int_house_number
+            elif comp[0] in "кс":
+                pass
+            elif comp in replace_val_dict:
+                vals[replace_val_dict[comp]] = comp
             else:
-                remnant.append(comp) 
-
+                remnant.append(comp)
+    if debug:
+        if remnant:
+            print(remnant)
     return pd.Series(vals)
 
 def get_floors(row: pd.Series) -> pd.Series:
@@ -131,14 +154,14 @@ def get_floors(row: pd.Series) -> pd.Series:
         if ('этаж' in str(element)) and (len(element.split(', ')) == 3):
             floor, max_floor = element.split(', ')[2][:-5].split('/')
             return pd.Series({'floor': floor, 'max_floor': max_floor}).map(int)
-    return None
+    return pd.Series({'floor': None, 'max_floor': None})
 
 def get_availability(row: pd.Series) -> pd.Series:
     row = row['subtitle']
     if pd.isna(row):
-        return row
+        return pd.Series({'is_available': None, 'available_date': None})
     elif 'Сдан' in row:
-        return pd.Series({'is_available': 1})
+        return pd.Series({'is_available': 1, 'available_date': None})
     elif 'Сдача корпуса' in row:
         av_date = row.split('корпуса ')[-1].split()
         quart = int(av_date[0])
@@ -168,5 +191,8 @@ def rename_drop_columns(data: pd.DataFrame) -> None:
         'room_type',
         'dt',
         'cur_datetime',
+        'ignore',
+        'min_price',
+        'max_price',
     ]
-    data.drop(drop_cols, axis=1, inplace=True)
+    data.drop([col for col in drop_cols if col in data.columns], axis=1, inplace=True)
