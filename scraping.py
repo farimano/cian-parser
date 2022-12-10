@@ -7,7 +7,10 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 
+from preprocessing import get_price_area
+
 import time
+import datetime
 
 
 class RandomTimeEvents:
@@ -28,7 +31,7 @@ class CianScraper:
         self._get_link(link)
         self._accept_cookies()
         
-        self.total = int(''.join(self.driver.find_element(By.XPATH, "//div[@data-name='SummaryHeader']").text.split()[1:-1]))
+        self.total = self._get_total_count()
         self.preprocessed = 0
         
         reg_link = self.driver.find_elements(By.XPATH, "//div[@data-name='Pagination']//a[@href]")[1].get_attribute('href')
@@ -45,45 +48,99 @@ class CianScraper:
         accept_button, = list(filter(lambda x: "принять" in x.text.lower(), buttons))
         accept_button.click()
         
+    def _get_total_count(self):
+        return int(
+            ''.join(
+                self.driver
+                .find_element(By.XPATH, "//div[@data-name='SummaryHeader']")
+                .text.split()[1:-1]
+            )
+        )
     
     def collect_data(self):
+        segments = []
         for room_type in range(1, 10):
             if room_type != 8:
                 for new_object in [True, False]:
-                    segment = {'new_object': new_object, 'room_type': room_type}
-                    self._collect_data_by_segment(segment)
+                    segments.append({'new_object': new_object, 'room_type': room_type})
+        self.segments = segments
+        while self.segments:
+            self.segment = self.segments.pop(0)
+            self._collect_data_by_segment(self.segment)
         print('The process has been completed!')
         self.driver.close()
         
         return self.data
     
-    def _collect_data_by_segment(self, segment):        
-        segment_link = self._generate_cian_link_for_segment(**segment)
-        self.similar_links = []
+    def collect_data_by_segments(self, segments):
+        self.segments = segments
+        while self.segments:
+            self.segment = self.segments.pop(0)
+            self._collect_data_by_segment(self.segment)
+        print('The process has been completed!')
+        self.driver.close()
         
+        return self.data
+    
+    def _collect_data_by_segment(self, segment):
+        segment_link = self._generate_cian_link_for_segment(**segment)
         RandomTimeEvents.sleep(30)
         self._get_link(segment_link)
-        self._collect_data(segment)
         
-        for similar_link in self.similar_links:
-            RandomTimeEvents.sleep(10)
-            self._get_link(similar_link)
+        price_segments = [{**segment}]
+        if not segment['new_object']:
+            article_num = self._get_total_count()
+            n_price_segments = article_num / 1500
+            n_quantiles = int((n_price_segments // 1) + bool(n_price_segments % 1))
+            
+            if n_quantiles >= 2:
+                price_list = self._get_price_list(segment, n_quantiles)
+                price_segments = [
+                    {'min_price':price_list[i], 'max_price':price_list[i+1], **segment} 
+                    for i in range(len(price_list) - 1)
+                ]
+        for segment in price_segments:
+            segment_link = self._generate_cian_link_for_segment(**segment)
+            self.similar_links = []
+
+            RandomTimeEvents.sleep(30)
+            self._get_link(segment_link)
             self._collect_data(segment)
-        
-        segment_string = ", ".join([f"{key}-{val}" for key, val in segment.items()])
-        print(f'\nSegment {segment_string} has been preprocessed!')
+
+            self.similar_links = list(set(self.similar_links))
+
+            for similar_link in self.similar_links:
+                RandomTimeEvents.sleep(5)
+                self._get_link(similar_link)
+                self._collect_data(segment)
+
+            segment_string = ", ".join([f"{key}-{val}" for key, val in segment.items()])
+            print(f'\nSegment {segment_string} has been preprocessed!')
     
     def _collect_data(self, segment):
         self.pagination = True
-        self.more_button = True
         
         while self.pagination:
             self._collect_data_by_pagination(segment)
         
-        while self.more_button:
-            self._collect_data_by_more_button()
-        
         self._scrap_data(segment)
+    
+    def _get_price_list(self, segment, n_quantiles):
+        quantiles = [(i+1) / n_quantiles for i in range(n_quantiles-1)]
+        room_type = segment['room_type']
+        data = pd.DataFrame(self.data)
+        data = data[data['room_type']==room_type]
+        price = data.apply(get_price_area, axis=1)['price']
+        
+        q_price = [price.quantile(q) for q in quantiles]
+        adj_q_price = [price / 2 for price in q_price]
+        q_price.extend(adj_q_price)
+        q_price = [int(price) for price in q_price]
+        q_price.sort()
+        
+        price_list = [None, *q_price, None]
+        return price_list
+        
     
     def _generate_cian_link_for_segment(self, room_type, new_object, min_price=None, max_price=None):
         link = 'https://cian.ru/cat.php?currency=2&deal_type=sale&engine_version=2'
@@ -97,7 +154,6 @@ class CianScraper:
     
     def _collect_data_by_pagination(self, segment):
         RandomTimeEvents.sleep(5)
-
         
         all_pages = self.driver.find_elements(By.XPATH, "//div[@data-name='Pagination']//li")
         pages = (page for page in all_pages)
@@ -113,14 +169,6 @@ class CianScraper:
         except StopIteration:
             self.pagination = False
     
-    def _collect_data_by_more_button(self):
-        RandomTimeEvents.sleep(5)
-        try:
-            more_button, = self.driver.find_elements(By.XPATH, "//a[contains(@class, 'more-button')]")
-            more_button.click()
-        except ValueError:
-            self.more_button = False
-    
     def _scrap_data(self, segment):
         new_data = []
         all_articles = self.driver.find_elements(By.XPATH, '//article')
@@ -130,6 +178,7 @@ class CianScraper:
         
         for article in articles:
             art_dict = {**segment}
+            art_dict['cur_datetime'] = datetime.datetime.now()
             
             art_dict['link'] = article.find_element(By.XPATH, ".//a[contains(@href,'cian.ru/sale/flat')]").get_attribute('href')
 

@@ -3,9 +3,7 @@ import numpy as np
 import datetime
 
 
-def first_preprocessing(data: pd.DataFrame) -> pd.DataFrame:
-    # This function is required to delete du[licates, because search engine shows
-    # the same flat several times.
+def remove_duplicates(data: pd.DataFrame) -> pd.DataFrame:
     data = data.groupby(['new_object', 'room_type', 'link']).tail(1)
     return data.reset_index(drop=True)
 
@@ -22,7 +20,7 @@ def get_nrooms_type(row: pd.Series) -> pd.Series:
 
 def get_price_area(row: pd.Series) -> pd.Series:
     for i in range(6, -1, -1):
-        if (row[f'component_{i}'] is not np.NaN) and ("₽" in row[f'component_{i}']):
+        if not(pd.isna(row[f'component_{i}'])) and ("₽" in row[f'component_{i}']):
             break
     price_col = f'component_{i}'
 
@@ -32,7 +30,7 @@ def get_price_area(row: pd.Series) -> pd.Series:
 
     return pd.Series({'price': price, 'area': price / price_per_metr, 'price_per_metr': price_per_metr})
 
-def get_dt(dt_string: str, launch_date: datetime.datetime=None) -> datetime.datetime:
+def get_post_dt(row: pd.Series, msc_tz_diff: int=0) -> datetime.datetime:
     rus_month_to_num = {
         "янв":1,
         "фев":2,
@@ -48,9 +46,12 @@ def get_dt(dt_string: str, launch_date: datetime.datetime=None) -> datetime.date
         "дек":12,
     }
     
+    dt_string = row['dt']
     date_str, time_str = dt_string.split(', ')
+    time = datetime.time(*map(int, time_str.split(':')))
     
-    launch_date = launch_date or datetime.date.today()
+    launch_dt = datetime.datetime.fromisoformat(row['cur_datetime'])-datetime.timedelta(hours=msc_tz_diff)
+    launch_date = launch_dt.date()
     
     if date_str == 'сегодня':
         date = launch_date
@@ -65,10 +66,9 @@ def get_dt(dt_string: str, launch_date: datetime.datetime=None) -> datetime.date
         else:
             year = launch_date.year
         date = datetime.date(year, month, day)
-    time = datetime.time(*map(int, time_str.split(':')))
-    
+   
     dt = datetime.datetime.combine(date, time)
-    return dt
+    return pd.Series({'post_dt': dt})
 
 def get_address_components(row: pd.Series) -> pd.Series:
     address = row['labels']
@@ -152,7 +152,7 @@ def get_cian_description(row: pd.Series) -> pd.Series:
     if not_price_components:
         return pd.Series({'cian_description': not_price_components[0]})
     else:
-        return None
+        return pd.Series({"cian_description": None})
 
 def rename_drop_columns(data: pd.DataFrame) -> None:
     col_dict = {
@@ -166,5 +166,7 @@ def rename_drop_columns(data: pd.DataFrame) -> None:
         'offer_title',
         'subtitle',
         'room_type',
+        'dt',
+        'cur_datetime',
     ]
     data.drop(drop_cols, axis=1, inplace=True)
