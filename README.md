@@ -1,5 +1,5 @@
 # cian-parser
-This main goal of this project is to create the convenient datatool to analyse the price of real property, collecting data from popular russian site cian.ru   
+The main goal of this project is to create the convenient datatool to analyse the price of real property, collecting data from popular russian site cian.ru   
   
 Several snippets.
 To scrap data, try this script. Also be sure to save your data in any convenient format.
