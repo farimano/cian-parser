@@ -1,18 +1,30 @@
 # cian-parser
-The main goal of this project is to create the convenient datatool to analyse the price of real property, collecting data from popular russian site cian.ru   
-  
-Several snippets.
-To scrap data, try this script. Also be sure to save your data in any convenient format.
+cian-parser is a tool for analyzing the prices of real estate properties, using data collected from the Russian website cian.ru.
+
+## Features
+- Scrape data using the `CianScraper` class
+- Perform initial preprocessing on the data using the `preprocessing` module
+- Collect the following data points:
+  - Date of posting
+  - Address and its components (region, city, district, street, etc.)
+  - Number of rooms and type of flat (simple, many-rooms for flats with more than 6 rooms, studio, or free for free planning)
+  - Area of flat and price per square meter
+  - Maximum floor in the building and the floor of the flat
+  - Availability and availability date for new properties
+  - Description of the flat
+
+## Usage
+To scrape data, use the following script:
+
 ```python
 import pandas as pd
-import numpy as np
 from scraping import CianScraper
 
 scraper = CianScraper()
 scraper.start('https://kaliningrad.cian.ru/kupit-kvartiru/')
 data = scraper.collect_data()
 ```
-To make first preprocessing, use this snippet 
+To perform initial preprocessing on the data:  
 ```python
 import pandas as pd
 import numpy as np
@@ -35,14 +47,7 @@ funcs = [
 df = reduce(lambda x, y: x.join(x.apply(y, axis=1)), [df, *funcs])
 prep.rename_drop_columns(df)
 ```
-In the current version for one hour you can get approximately 1600 records. Approximately 90 percent of all advertisments can be collected for small and medium -sized  cities.S
-The detailed version of how this module can be used to train real estate evaluation model can be found here https://github.com/farimano/cian-parser-example  
-  
-In the current moment, next features can be collected:  
-1) date of posting (dt)
-2) address and all its components such as region, city, district, street, etc  
-3) number of rooms and type of of flat as simple, many-rooms for flats with more than 6 rooms, studio and free for free planning  
-4) area of flat and price for 1 squared metr  
-5) maximum floor in the house and the floor of flat  
-6) availability and the date of availability for new objects  
-7) the description of floor  
+##Notes
+  - In the current version, approximately 1600 records can be collected in an hour.
+  - For small and medium-sized cities, approximately 90% of all advertisements can be collected.
+  - For more information on using this module to train a real estate evaluation model, see this https://github.com/farimano/cian-parser-example  
