@@ -47,7 +47,7 @@ funcs = [
 df = reduce(lambda x, y: x.join(x.apply(y, axis=1)), [df, *funcs])
 prep.rename_drop_columns(df)
 ```
-##Notes
+## Notes
   - In the current version, approximately 1600 records can be collected in an hour.
   - For small and medium-sized cities, approximately 90% of all advertisements can be collected.
   - For more information on using this module to train a real estate evaluation model, see this https://github.com/farimano/cian-parser-example  
